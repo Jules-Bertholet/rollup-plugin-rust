@@ -1,6 +1,6 @@
-# rollup-plugin-rust
+# rollup-plugin-rust (fork)
 
-Rollup plugin for bundling and importing Rust crates.
+Rollup plugin for bundling and importing Rust crates. This fork adds a few extra options.
 
 This plugin internally uses [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) and [`wasm-bindgen`](https://rustwasm.github.io/docs/wasm-bindgen/).
 
@@ -134,6 +134,13 @@ rust({
 
     // Allows you to customize the behavior for loading the .wasm file, this is for advanced users only!
     importHook: function (path) { return JSON.stringify(path); },
+
+    // Added by fork: Instead of using the default `wasm-pack`, execute this function to build the project.
+    command: null,
+
+    // Added by fork: If `inlineWasm` is set, don't `await` for module, load it synchronously.
+    // Won't work with default build command.
+    sync: false,
 })
 ```
 

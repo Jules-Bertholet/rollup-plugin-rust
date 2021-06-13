@@ -138,39 +138,44 @@ async function wasm_pack(cx, state, dir, source, id, options) {
 
     const out_dir = $path.resolve($path.join(target_dir, "wasm-pack", name));
 
-    await rm(out_dir);
+    if (options.command) {
+        await options.command();
+    } else {
+        await rm(out_dir);
 
-    const args = [
-        "--log-level", (options.verbose ? "info" : "error"),
-        "build",
-        "--out-dir", out_dir,
-        "--out-name", "index",
-        "--target", "web",
-        (options.debug ? "--dev" : "--release"),
-        "--",
-    ].concat(options.cargoArgs);
+        const args = [
+            "--log-level", (options.verbose ? "info" : "error"),
+            "build",
+            "--out-dir", out_dir,
+            "--out-name", "index",
+            "--target", "web",
+            (options.debug ? "--dev" : "--release"),
+            "--",
+        ].concat(options.cargoArgs);
 
-    // TODO pretty hacky, but needed to make it work on Windows
-    const command = (process.platform === "win32" ? "wasm-pack.cmd" : "wasm-pack");
+        // TODO pretty hacky, but needed to make it work on Windows
+        const command = (process.platform === "win32" ? "wasm-pack.cmd" : "wasm-pack");
 
-    try {
-        // TODO what if it tries to build the same crate multiple times ?
-        // TODO maybe it can run `cargo fetch` without locking ?
-        await lock(async function () {
-            await wait($child.spawn(command, args, { cwd: dir, stdio: "inherit" }));
-        });
+        try {
+            // TODO what if it tries to build the same crate multiple times ?
+            // TODO maybe it can run `cargo fetch` without locking ?
+            await lock(async function () {
+                await wait($child.spawn(command, args, { cwd: dir, stdio: "inherit" }));
+            });
 
-    } catch (e) {
-        if (e.code === "ENOENT") {
-            throw new Error("Could not find wasm-pack, install it with `yarn add --dev wasm-pack` or `npm install --save-dev wasm-pack`");
+        } catch (e) {
+            if (e.code === "ENOENT") {
+                throw new Error("Could not find wasm-pack, install it with `yarn add --dev wasm-pack` or `npm install --save-dev wasm-pack`");
 
-        } else if (options.verbose) {
-            throw e;
+            } else if (options.verbose) {
+                throw e;
 
-        } else {
-            throw new Error("Rust compilation failed");
+            } else {
+                throw new Error("Rust compilation failed");
+            }
         }
     }
+
 
     // TODO better way to generate the path
     const import_path = JSON.stringify("./" + posixPath($path.relative(dir, $path.join(out_dir, "index.js"))));
@@ -233,8 +238,8 @@ async function wasm_pack(cx, state, dir, source, id, options) {
 
                     const wasm_code = base64_decode(${wasm_string});
 
-                    export default async () => {
-                        await exports.default(wasm_code);
+                    export default ${options.sync ? '' : 'async '}() => {
+                        ${options.sync ? '' : 'await '}exports.default(wasm_code);
                         return exports;
                     };
                 `,
@@ -396,6 +401,10 @@ module.exports = function rust(options = {}) {
 
     if (options.nodejs == null) {
         options.nodejs = false;
+    }
+
+    if (options.sync == null) {
+        options.sync = false;
     }
 
     return {
